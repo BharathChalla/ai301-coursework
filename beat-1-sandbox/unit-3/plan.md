@@ -84,8 +84,22 @@ around it.
 
 ## Deviations
 
-Nothing changed; the plan held. The build matched this plan exactly:
-one line in `api/routes/health.py`, one new test file, no changes to
-`core/config.py`, and the before/after evidence came out exactly as
-predicted (see `beat-1-sandbox/unit-3/plan-and-implement.md`'s Evidence
-field for the actual command output).
+One change from the plan I posted, found while preparing the PR: the repo's
+PR template asks that a fix for a seeded bug also remove "any matching
+suppression in `pyproject.toml`", and `pyproject.toml`'s own comment names
+this issue as the reason `api.routes.health` carries a mypy override
+(`attr-defined`, `call-overload`, `index`). I could not check that earlier
+because `mypy` crashed in this environment on a numpy-stub error; running it
+with `--python-version 3.12` works. With the whole override removed, mypy
+reports 7 `index` errors in `health.py`; with only `attr-defined` removed it
+is clean. So the build adds one more file: `pyproject.toml`, dropping
+`"attr-defined"` from that override (the one finding this fix retires) and
+leaving `call-overload` and `index`, which cover separate findings in the
+same module and are not part of this issue.
+
+Everything else held: the one-line `redis.from_url(settings.redis_url, ...)`
+change in `api/routes/health.py`, the new `tests/unit/test_health.py`, and no
+change to `core/config.py`. The before/after evidence came out as predicted
+(see `beat-1-sandbox/unit-3/plan-and-implement.md`). The posted plan comment
+named two files and "one line plus a regression test", so I am adding a
+short follow-up comment on the issue about the third file.
