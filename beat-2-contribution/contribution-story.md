@@ -66,10 +66,9 @@ I wrote an Upstream section for my voice guide (claims, questions, pings, each w
 
 The ship-gate ran my three checks (ruff, mypy, unit tests) and then my pr-precheck on the branch, and it passed on the second run with all six checks. It stopped the first time because my manifest used `.venv/Scripts/python`, which cmd.exe does not understand, and the hook as installed called `python3`, which is a Store stub on this machine; I fixed both. The two Windows path tests that fail on `main` went into the manifest's excluded table with a date, so the gate did not hide them or fail on them. The pass let the PR through within the 30-minute window.
 
-**Unit 8: [one line on the tool work]**
+**Unit 8: Installed the PR monitor and wrote a playbook from a repo with no outside-PR history**
 
-[2-4 sentences: the PR-monitor and your playbook. What it read, what it
-drafted, what you did with the draft.]
+I installed the PR monitor and wrote my four-section playbook, but identark's merged PRs were all the maintainer's own, so I had no outside-contributor wait time to base my staleness number on; I used the issue's "reply within 48 hours" promise plus margin, a 5-day nudge threshold, and said that in the playbook. The monitor read PR #11 (no comments, no reviews, no checks, under a day old) and drafted a wait note: no nudge until 2026-11-15, one ask only, no "bumping". I did not post anything, because the playbook rule says wait, and I would not have trusted a draft nudge on an empty thread anyway. What fell short: with nothing on the PR the monitor had little to do, so I cannot say how it handles a real review; that is untested.
 
 ---
 
@@ -121,7 +120,7 @@ On `main` the first call with the default model fails with `404 models/gemini-1.
 
 **Environment Setup**
 
-Windows 11, Git Bash, Python 3.12.10. I forked identArk/identark, cloned my fork, and worked on `main` at c974f1a (release 1.3.0). Setup: `python -m venv .venv`, then `.venv/Scripts/python -m pip install -e ".[dev]"`. The first install attempt left the dependencies missing (`No module named pytest`); running the same pip command again installed everything. I have no Gemini API key, so I did not make a live API call.
+Windows 11, Git Bash, Python 3.12.10. I forked identArk/identark, cloned my fork, and worked on `main` at c974f1a (release 1.3.0). Setup: `python -m venv .venv`, then `.venv/Scripts/python -m pip install -e ".[dev]"`. The first install attempt left the dependencies missing (`No module named pytest`); running the same pip command again installed everything. My first reproduction used no API key; later I generated a free-tier Gemini API key in Google AI Studio and made the live call shown under Reproduction Evidence. The key stayed in an environment variable and in no file or log.
 
 **Steps to Reproduce**
 
@@ -144,7 +143,14 @@ gemini-3-pro-preview cost for 1M in + 1M out = 0.375   WARNING Unknown Gemini mo
 pytest tests/unit/: 211 passed, 3 skipped, 2 failed (Windows path tests in test_gateways.py, unrelated)
 ```
 
-- **My findings:** The issue is real on `main`: the default model is the retired `gemini-1.5-pro`, and a Pro-class model is priced at the Flash fallback (0.375 against 6.25 for the same tokens under the old 1.5 Pro rate), so costs are undercounted by about 94%, a lower bound. What I did not show is that the first API call with the default model fails; that needs a key, and I rely on the issue's citation of Google's deprecations page. The two failing tests also fail on `main` and do not touch Gemini.
+Live call on `main`, added once I had a key (the key is redacted from the output):
+
+```text
+default model: gemini-1.5-pro
+call with default model: FAILED NotFound 404 models/gemini-1.5-pro is not found for API version v1beta, or is not supported for generateContent.
+```
+
+- **My findings:** The issue is real on `main`: the default model is the retired `gemini-1.5-pro`, and a Pro-class model is priced at the Flash fallback (0.375 against 6.25 for the same tokens under the old 1.5 Pro rate), so costs are undercounted by about 94%, a lower bound. The live call confirms the other half: with a real key, the first call with the default model returns `404 models/gemini-1.5-pro is not found`. The two failing tests also fail on `main` and do not touch Gemini.
 
 **Toolkit**
 
@@ -233,6 +239,7 @@ Built the fix in two commits (code, tests and changelog; then docs and examples)
 **Maintainer Feedback:**
 
 - 2026-11-10: none yet. The repo's CI had reported no checks on the PR when I opened it.
+- 2026-11-10: my PR monitor read the PR and drafted a wait note; under my playbook (5 quiet days) the first possible nudge is 2026-11-15, so I sent nothing.
 
 **Status:** Awaiting review
 
@@ -249,25 +256,22 @@ Built the fix in two commits (code, tests and changelog; then docs and examples)
 
 **Technical Skills Gained**
 
-[What you learned technically, named concretely.]
+I learned how a gateway library estimates LLM cost (a price table plus a fallback) and why the fallback must err high, how to check a model name against a real API (`list_models` and a one-token call), and how to read a retired-model 404. I also learned to read a repo's contributing rules, run its checks in a Windows venv, and sign off commits with `git commit -s`.
 
 **Challenges Overcome**
 
-[What was hard and how you solved it; point at the real events, the
-Toolkit blocks above are full of them.]
+The hardest part was the data: Google's pricing page was truncated for the subagent that fetched it and partly summarized, so I stopped, saved the page text myself, and used only numbers I could read. Pro models returned 429 on a free-tier key, so I disclosed the Pro price as not call-verified instead of claiming it. My first scan's top pick, neura-robot#13, was already fixed on `main`, which I only caught by reading the code before claiming, and the ship-gate's cmd.exe path and `python3` hook problems on Windows were fixed after they stopped the first run.
 
 **What I'd Do Differently Next Time**
 
-[Reflection on your process.]
+I would check an issue's default branch for the fix before grading it, which my scout now does. I would pick the price source and write it into my repo memory file before building, and ask the maintainer the open Pro-model question in the claim thread instead of in a PR note. I would also look at how outside PRs were handled in a repo before claiming, since identark had none to learn from.
 
 ---
 
 ## Resources Used
 
-[What actually helped, not a reading list. List things this story
-already shows you using: the doc you followed to set the environment
-up, the thread that explained the bug, the person who answered you.
-One real entry beats ten plausible ones.]
-
-- [Link to documentation that helped]
-- [Discussion, issue, or post that helped]
+- identArk/identark#10, the issue itself: it named the files, lines and the fix shape, and it is what the reproduction and plan followed. https://github.com/identArk/identark/issues/10
+- identark's CONTRIBUTING.md and CLAUDE.md: the checks to run, the commit format, and the sign-off rule.
+- Google's Gemini API pricing page (saved as text from AI Studio): the only source I used for model names and prices. https://ai.google.dev/gemini-api/docs/pricing
+- The Gemini API `list_models` call and a one-token request on my own key: how I confirmed the default 404 and that `gemini-3.6-flash` works.
+- The course's unit 6 to 8 starters (voice guard, ship-gate, PR monitor): the install steps I followed, and my own scan notes in `scan-notes.md`.
