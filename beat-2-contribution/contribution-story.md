@@ -11,7 +11,7 @@ files and no evidence uploads are part of Assignment 5.
 **Student:** Bharath Challa
 **GitHub Username:** BharathChalla
 **Issue:** https://github.com/identArk/identark/issues/10
-**Pull Request:** [GitHub PR link, once opened]
+**Pull Request:** https://github.com/identArk/identark/pull/11
 
 One repository, built across units 5 to 8, telling the whole story of your real
 contribution. Fill it as you work, not at the end — the sections below ask for evidence that
@@ -62,10 +62,9 @@ I turned my issue-select skill into issue-scout, with my fit profile (Python bac
 
 I wrote an Upstream section for my voice guide (claims, questions, pings, each with a wrong/right pair), made it the one guide all my skills read, and installed the voice-guard hook, which stopped `gh issue comment --help` as expected. The hook edit to my global settings was blocked when I tried it, so I added it myself after that; I also had to use `python` because `python3` here is a Windows Store stub. My claim passed the guard and repro-check before I posted it, and `CLAUDE.local.md` now holds the repo's conventions, the files my issue touches and my Windows setup, kept out of the PR with `.git/info/exclude`. Nothing in the guard misfired on my claim, which I know from its log line showing a pass before the post.
 
-**Unit 7: [one line on the tool work]**
+**Unit 7: Installed the ship-gate and wrote a manifest that runs on Windows**
 
-[2-4 sentences: the ship-gate and your gate manifest. What it produced
-on your real branch, what fought you, what changed because of it.]
+The ship-gate ran my three checks (ruff, mypy, unit tests) and then my pr-precheck on the branch, and it passed on the second run with all six checks. It stopped the first time because my manifest used `.venv/Scripts/python`, which cmd.exe does not understand, and the hook as installed called `python3`, which is a Store stub on this machine; I fixed both. The two Windows path tests that fail on `main` went into the manifest's excluded table with a date, so the gate did not hide them or fail on them. The pass let the PR through within the 30-minute window.
 
 **Unit 8: [one line on the tool work]**
 
@@ -95,26 +94,26 @@ On the scout itself: it fell short in two places on real searches. Its ranking f
 
 **Problem Description**
 
-[In your own words, what is broken or missing?]
+identark's `GeminiGateway` talks to Google's Gemini models. Its default model, `gemini-1.5-pro`, has been shut down by Google, and the library's price tables (used to estimate cost and enforce spending caps) only list retired models. Any current model is priced with a cheap fallback, so costs are undercounted.
 
 **Expected Behavior**
 
-[What should happen?]
+`GeminiGateway(api_key=...)` with no `model` should work on its first call, the price tables should list current models, and an unknown model should be estimated conservatively (high), so a cost cap cannot be overspent.
 
 **Current Behavior**
 
-[What actually happens?]
+On `main` the first call with the default model fails with `404 models/gemini-1.5-pro is not found`. An unlisted Pro-class model is estimated at 0.375 per 1M input plus 1M output tokens, the Flash rate, instead of the Pro-class rate.
 
 **Affected Components**
 
-[Which parts of the codebase are involved?]
+`identark/integrations/gemini.py` (default `model`, `_GEMINI_PRICING`, `_estimate_gemini_cost`), `identark/pricing.py` (`_BUNDLED_PRICING`), `tests/unit/test_integrations_gemini.py`, `examples/`, `docs/adapters/gemini.md`, `CHANGELOG.md`.
 
 **Toolkit**
 
-- Tool:
-- What it produced:
-- Difficulties:
-- What changed:
+- Tool: Claude Code, reading the issue and the code, plus `CLAUDE.local.md` (my repo memory file) holding the file map.
+- What it produced: A file-and-line map of where the retired names live, which matched the issue, and a list of the other places (docs, examples) the issue did not name.
+- Difficulties: The issue was precise, so little fought me; the one gap was that I had to check the code, not trust the issue, for the docs file.
+- What changed: Added `docs/adapters/gemini.md` to the plan and disclosed it in the PR.
 
 ---
 
@@ -160,93 +159,89 @@ pytest tests/unit/: 211 passed, 3 skipped, 2 failed (Windows path tests in test_
 
 **Analysis**
 
-[Your analysis of the root cause: what is causing the issue, traced
-to the files and functions involved.]
+`GeminiGateway.__init__` in `identark/integrations/gemini.py` defaults `model` to the retired `gemini-1.5-pro`. `_GEMINI_PRICING` in the same file and `_BUNDLED_PRICING` in `identark/pricing.py` list only Gemini 1.0, 1.5 and 2.0-exp models. `_estimate_gemini_cost` falls back to `gemini-1.5-flash`, the cheapest tier, for any model not in the table, so current models are underestimated and a cost cap can be overspent.
 
 **Proposed Solution**
 
-[High-level description of your fix approach, and what you are
-deliberately NOT changing.]
+Default to `gemini-3.6-flash` (verified with a real call), replace the retired price entries in both tables with current Flash, Flash-Lite and Pro entries at Google's paid-tier standard text prices (checked 2026-11-10), and make the unknown-model fallback the most expensive known rate. Not changing: the `google-generativeai` to `google-genai` migration (the issue scopes it out), any gateway logic, or the TypeScript SDK (identark-js#24).
 
 **Implementation Plan**
 
-1. [Modify file X to do Y]
-2. [Add or change Z]
-3. [Update tests]
+1. `gemini.py`: add `DEFAULT_MODEL`, replace `_GEMINI_PRICING`, add `_FALLBACK_MODEL` (the most expensive entry), use it in `_estimate_gemini_cost`, fix docstring model names.
+2. `pricing.py`: replace the three Gemini entries with the same current models and prices.
+3. Tests: current names, loosen the "very cheap" bound, add a test that the default model is priced and a test that the fallback is the most expensive rate.
+4. Examples (3 files) and `docs/adapters/gemini.md`: current names and the price table.
+5. `CHANGELOG.md`: one line under `[Unreleased]`.
 
-[Record deviations here as they happen: what changed mid-build and
-why. A recorded deviation is honest work; silent drift is not.]
+Deviations: none from the plan; `docs/adapters/gemini.md` was in plan step 4 from the start, though the issue's file list did not name it, and the PR says so.
 
 **Toolkit**
 
-- Tool:
-- What it produced:
-- Difficulties:
-- What changed:
+- Tool: plan-check, grading `plan.md` and a draft plan comment (the comment stays unposted, as the assignment says).
+- What it produced: Reject on the first run, accept on the second.
+- Difficulties: It failed "confidence matches the evidence": my comment said "I confirmed... on a real key" with no output next to it, and the 2027-01-01 price doubling was only in the comment, not in the plan's risks.
+- What changed: Pasted the 404 output into the comment, added the AI-use line, and added a Risk section to plan.md with the price doubling and the unverified Pro price.
 
 ---
 
 ## Testing Strategy
 
-[What observable checks prove the fix: your reproduction steps re-run
-against the built change (before and after), and the repo's own test
-suite or checks with the outcome shown. "Tests pass" with nothing
-observable named is not a strategy.]
+Primary repro, re-run on my branch with a real Gemini key: `GeminiGateway(api_key=...)` with no `model`, first call. Before (on `main`): `NotFound 404 models/gemini-1.5-pro is not found for API version v1beta`. After: `OK model= gemini-3.6-flash cost_usd= 6e-06`.
+
+Second scenario, `_estimate_gemini_cost` for 1M input plus 1M output tokens on an unlisted model: before 0.375 (Flash fallback, with a warning), after 14.0 (the most expensive known rate, `gemini-3.1-pro-preview`, with a warning naming it).
+
+Repo checks from CONTRIBUTING.md: `ruff check identark/ tests/` passes; `mypy identark/` reports no issues; `pytest tests/unit/` gives 213 passed, 3 skipped, 2 failed. The two failures are Windows path tests (`test_gateways.py`) that also fail on `main` and do not touch Gemini. Two new tests pin the default model to a price entry and the fallback to the most expensive rate. Not shown: a call to `gemini-3.1-pro-preview`, which returned 429 on my free-tier key.
 
 **Toolkit**
 
-- Tool:
-- What it produced:
-- Difficulties:
-- What changed:
+- Tool: The ship-gate manifest (the repo's own checks) and `test_evidence.md`, plus a real Gemini API key for the live calls.
+- What it produced: A manifest with ruff, mypy and pytest, and an evidence file with before and after output.
+- Difficulties: `.venv/Scripts/python` worked in my shell but the gate runs commands through cmd.exe, where it failed ("is not recognized"); the two Windows tests also fail on `main`, so the pytest row needed a `--deselect` and a dated entry in the excluded table.
+- What changed: Rewrote the manifest commands with backslashes, deselected the two tests with a dated reason, and kept the live key out of every file and log.
 
 ---
 
 ## Implementation Notes
 
-[A running log, added to as you work. Date each entry. What you
-built, decisions you made when you made them, wrong turns included.]
+**2026-11-10**
 
-**[Date]**
+Claimed #10 and posted a claim comment (first step: run the tests on `main` and the no-model call). Set up a venv on Windows; the first `pip install` left the dependencies missing, and running it again fixed that. Reproduced on `main`: default `gemini-1.5-pro`, a table of retired models, an unknown model priced at the Flash rate.
 
-[Entry]
+**2026-11-10**
 
-**[Date]**
+Wrote `CLAUDE.local.md`, then went to Google for current model names and prices. A subagent fetched the pricing page, but the page was truncated and part of its report was a summary, so I did not trust it; I saved the full pricing page text from AI Studio and used only the numbers I could read in it. Wrong turn: I expected the Google AI Pro plan to let me call the Pro models, but that plan does not carry API quota, so those calls returned 429.
 
-[Entry]
+**2026-11-10**
+
+Built the fix in two commits (code, tests and changelog; then docs and examples), both signed off with `git commit -s`. First test run failed `test_cost_estimation` because its "very cheap" bound (0.001) assumed 1.5 Flash prices; I loosened it to 0.01. Decision: use today's prices and note the 2027-01-01 doubling in a comment, instead of the higher future rate. `ruff format --check` flags 18 files on `main` already, so I did not reformat unrelated code.
 
 **Toolkit**
 
-- Tool:
-- What it produced:
-- Difficulties:
-- What changed:
+- Tool: `CLAUDE.local.md`, my repo memory file, which Claude Code loads at the start of every session in this clone.
+- What it produced: The file map, the repo's commit and test conventions, and my Windows setup notes, so I did not re-explain them each session.
+- Difficulties: I wrote it before I knew which prices I would use, so the price decisions are not in it.
+- What changed: Nothing yet; I would add the price-source rule (use the page text, not a summary) next time.
 
 ---
 
 ## Pull Request
 
-**PR Link:** [GitHub PR URL when opened]
+**PR Link:** https://github.com/identArk/identark/pull/11
 
-**PR Description:** [what the PR says; much of the content above
-adapts into it]
+**PR Description:** The PR defaults `GeminiGateway` to `gemini-3.6-flash`, replaces the retired entries in `_GEMINI_PRICING` and `_BUNDLED_PRICING` with five current Flash, Flash-Lite and Pro models, prices unknown models at the most expensive known rate, and updates tests, docs, examples and the changelog (8 files, +86/-54, two signed-off commits). It carries the before and after output, the repo checks with the two failing Windows tests disclosed, and the open edges: the Pro price is from the pricing page and was not call-verified, the Flash prices double on 2027-01-01, and the google-genai migration is out of scope. It ends with a plain sentence that I used Claude Code and ran every command myself.
 
 **Maintainer Feedback:**
 
-- [Date]: [feedback received, or "none yet"; silence is a normal
-  state and costs you nothing]
-- [Date]: [how you addressed it]
+- 2026-11-10: none yet. The repo's CI had reported no checks on the PR when I opened it.
 
-**Status:** [Awaiting review / Iterating / Merged / Closed. The
-status is a fact you record, never a grade: the PR is graded as
-opened.]
+**Status:** Awaiting review
 
 **Toolkit**
 
-- Tool:
-- What it produced:
-- Difficulties:
-- What changed:
+- Tool: The ship-gate (my manifest checks, then my pr-precheck on the branch, plan, evidence and description).
+- What it produced: The first run stopped on a repo check, the second passed: all three repo checks and all six pr-precheck checks, with a note that the "signed off" claim needed a `git log` check and the default-model constant sat under the pricing comment.
+- Difficulties: The gate runs commands in cmd.exe, so my forward-slash venv path failed on the first run, and the hook installed with `python3`, which is a Windows Store stub here.
+- What changed: Fixed the manifest paths and changed the hook to `python`; I checked the sign-off line with `git log` (both commits have Signed-off-by).
 
 ---
 
